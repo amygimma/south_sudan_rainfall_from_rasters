@@ -8,7 +8,7 @@
 rm(list=ls(all=TRUE) )
 
 # Set font
-windowsFonts(Arial=windowsFont("Arial"))
+# windowsFonts(Arial=windowsFont("Arial"))
 
 # Set working directory to where this file is stored
 current_path = rstudioapi::getActiveDocumentContext()$path 
@@ -19,14 +19,30 @@ print( getwd() )
 ## Install or load required R packages
 
 # List of required packages
-x1 <- c("stringr", "sf","RColorBrewer", "raster", "dplyr", "rgdal", "mapview", "csv", "openxlsx", "purrr", "testthat", "microbenchmark", "psych")
-
-# Install any packages not yet installed
+x1 <- c("stringr", "sf","RColorBrewer", "raster", "dplyr", "csv", "openxlsx", "purrr", "testthat", "microbenchmark")
+# Install any packages not ye1t installed
 x2 <- x1 %in% row.names(installed.packages())
 if (any(x2 == FALSE)) { install.packages(x1[! x2]) }
 
+# May need to follow installation instructions in the terminal
+if (!"rgdal" %in% installed.packages()) install.packages("rgdal")
+if (!"psych" %in% installed.packages()) install.packages("psych")
+
+# No longer necessary but leaving for now for reference (you can remove)
+# if(!"mapview" %in% installed.packages()){
+#   # Install mapview dependencies
+#   # May need to follow installation instructions in the terminal, ie for "units" package
+#   if (!"crosstalk" %in% installed.packages()) install.packages("crosstalk")
+#   # Units github: https://github.com/r-quantities/units
+#   if (!"units" %in% installed.packages()) install.packages("units")
+#   # SF instructions: https://r-spatial.github.io/sf/
+#   if (!"sf" %in% installed.packages()) install.packages("sf")
+# 
+#   remotes::install_github("r-spatial/mapview")
+# }
+
 # Load all packages    
-lapply(x1, library, character.only = TRUE)
+lapply(c(x1, "rgdal", "sf"), library, character.only = TRUE)
 
 
 # ===================
@@ -67,7 +83,7 @@ process_shapefile  <- function(filename){
 }
 
 shapefile_to_df <- function(shapef){
-  df <- data.frame(shapef$year, shapef$month, shapef$admin1Name, shapef$admin2Name, shapef$mean_spi)
+  df <- data.frame(shapef$year, shapef$month, shapef$ADM1_EN, shapef$ADM2_EN, shapef$mean_spi)
   return(df)
 }
 
@@ -78,8 +94,14 @@ shapefile_to_df <- function(shapef){
 # SOM - ADMIN LEVEL 2 - DISTRICT
 
 #area_file <- "C:/Users/Sev/Documents/GAM_SAM prediction/South Sudan/Data/Admin2_Shapefile/ssd_admbnda_adm2_Abyei_imwg_nbs_20180817.shp"
-area_file <- "C:/Users/sever/OneDrive/Documents/GAM_SAM prediction/South Sudan/Data/Admin2_Shapefile/SS_Admin2_2011.shp"
-aggshape <- read_sf(area_file)
+# area_file <- "SS_Admin2_2011.shp"
+# area_file  <- "ssd_admbnda_imwg_nbs_shp/ssd_.shp
+
+grep("\\.shp", list.files("ssd_admbnda_adm2_imwg_nbs_20180817/"), value = T)
+
+area_file <- file.path("ssd_admbnda_adm2_imwg_nbs_20180817/ssd_admbnda_adm2_imwg_nbs_20180817.shp")
+aggshape <- sf::read_sf(area_file)
+
 
 # ===================
 # RUN
@@ -88,7 +110,7 @@ aggshape <- read_sf(area_file)
 # CREATE CSV
 # raw_data_dir <- "J:/Mortality_estimation_crises/Nigeria/New Data Structure/Predictor data/As received/not_cleaned/Rainfall 2017-2018/"
 raw_data_dir <- "C:/Users/sever/OneDrive/Documents/GAM_SAM prediction/South Sudan/Data/Climate/Ssd_Climate Engine/"
-setwd(raw_data_dir)
+# setwd(raw_data_dir)
 files <- list.files()
 file_names <- files %>% str_subset(".tif")
 
@@ -98,10 +120,13 @@ agg_shapes <- lapply(file_names, process_shapefile)
 clim_dfs <- lapply(agg_shapes, shapefile_to_df)
 # combine all dfs
 combined_df <-  do.call("rbind", clim_dfs)
-names(combined_df)
+
 
 # format combined dfs for csv output
+names(combined_df)
 names(combined_df) <- c("y", "m", "state", "county", "mean_spi")
+names(combined_df)
+
 head(combined_df)
 combined_df <- select(combined_df, c("y", "m", "state", "county", "mean_spi"))
 combined_df <- as.data.frame(combined_df)
@@ -109,6 +134,9 @@ combined_df <- as.data.frame(combined_df)
 # Save Csv
 filename <- paste0(raw_data_dir,  "/SPI_Chirps_2014-2018_Standardized_From_1981_2019.csv")
 write.csv(combined_df, filename)
+
+dir.create("outputs", showWarnings = F)
+write.csv(combined_df, file.path("outputs", "SPI_Chirps_2014-2018_Standardized_From_1981_2019.csv"))
 
 
 
